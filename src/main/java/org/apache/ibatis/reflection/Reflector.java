@@ -42,19 +42,44 @@ import org.apache.ibatis.reflection.property.PropertyNamer;
  * This class represents a cached set of class definition information that
  * allows for easy mapping between property names and getter/setter methods.
  *
+ * 对java反射api的封装
+ *
  * @author Clinton Begin
  */
 public class Reflector {
-
+  /**
+   * 对应的class类型
+   */
   private final Class<?> type;
+  /**
+   * 可读属性的名称集合，可读就是存在get方法
+   */
   private final String[] readablePropertyNames;
+  /**
+   * 可写属性的名称集合，可写就是存在set方法
+   */
   private final String[] writablePropertyNames;
+  /**
+   * 记录了set方法，key是属性名称，value是Invoker对象。是对set方法对应Method对象的封装
+   */
   private final Map<String, Invoker> setMethods = new HashMap<>();
+  /**
+   * 同上，道理差不多
+   */
   private final Map<String, Invoker> getMethods = new HashMap<>();
+  /**
+   * 记录了set方法的参数值类型，key是属性名称，value是set方法的参数类型
+   */
   private final Map<String, Class<?>> setTypes = new HashMap<>();
+  /**
+   * 同上
+   */
   private final Map<String, Class<?>> getTypes = new HashMap<>();
   private Constructor<?> defaultConstructor;
 
+    /**
+     * 记录所有属性名称的集合
+     */
   private Map<String, String> caseInsensitivePropertyMap = new HashMap<>();
 
   public Reflector(Class<?> clazz) {
@@ -73,8 +98,14 @@ public class Reflector {
     }
   }
 
+    /**
+     * 添加默认构造方法
+     * @param clazz
+     */
   private void addDefaultConstructor(Class<?> clazz) {
+      // 使用java反射api获得所有的构造方法声明
     Constructor<?>[] consts = clazz.getDeclaredConstructors();
+    //  遍历所有的构造方法声明，如果参数的类型数组长度为0，即默认构造方法声明
     for (Constructor<?> constructor : consts) {
       if (constructor.getParameterTypes().length == 0) {
         this.defaultConstructor = constructor;
@@ -84,7 +115,9 @@ public class Reflector {
 
   private void addGetMethods(Class<?> cls) {
     Map<String, List<Method>> conflictingGetters = new HashMap<>();
+    // 获得所有的方法声明
     Method[] methods = getClassMethods(cls);
+    // 遍历方法，获得所有的get 和 is 开头的方法
     for (Method method : methods) {
       if (method.getParameterTypes().length > 0) {
         continue;
@@ -291,7 +324,9 @@ public class Reflector {
   private Method[] getClassMethods(Class<?> cls) {
     Map<String, Method> uniqueMethods = new HashMap<>();
     Class<?> currentClass = cls;
+    // 如果当前类型不是null，也不是Object类型
     while (currentClass != null && currentClass != Object.class) {
+        // 调用java反射api，获得当前类的所有方法声明，然后将方法放入map中保存（只保存一份）
       addUniqueMethods(uniqueMethods, currentClass.getDeclaredMethods());
 
       // we also need to look for interface methods -
@@ -311,7 +346,10 @@ public class Reflector {
 
   private void addUniqueMethods(Map<String, Method> uniqueMethods, Method[] methods) {
     for (Method currentMethod : methods) {
+        // 不是桥接方法
+        // 编译器对桥接方法保护，显示调用会报错，所以这里需要排除桥接方法。
       if (!currentMethod.isBridge()) {
+          // 获得方法签名
         String signature = getSignature(currentMethod);
         // check to see if the method is already known
         // if it is known, then an extended class must have
